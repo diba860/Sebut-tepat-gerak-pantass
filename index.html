@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kembara Sebutan Bandar</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: 'Comic Sans MS', 'Fredoka', 'Chalkboard SE', 'Segoe UI', sans-serif;
+    }
+
+    body {
+      background-color: #1a1a2e;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100%;
+      max-width: 800px;
+      height: 100vh;
+      max-height: 600px;
+      background: #87CEEB;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Header Bar */
+    .top-bar {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .badge {
+      background: rgba(255, 255, 255, 0.9);
+      color: #2c3e50;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      border: 3px solid #ffcc00;
+    }
+
+    /* Game World Canvas / Stage */
+    .world-stage {
+      position: relative;
+      width: 100%;
+      height: 55%;
+      background: linear-gradient(to bottom, #70c5ce 0%, #a0e0e0 60%, #e0f0d0 100%);
+      overflow: hidden;
+    }
+
+    /* Background Elements */
+    .cloud {
+      position: absolute;
+      background: white;
+      border-radius: 50px;
+      opacity: 0.85;
+      animation: moveCloud linear infinite;
+    }
+
+    @keyframes moveCloud {
+      from { transform: translateX(800px); }
+      to { transform: translateX(-200px); }
+    }
+
+    .city-bg {
+      position: absolute;
+      bottom: 60px;
+      width: 200%;
+      height: 120px;
+      display: flex;
+      align-items: flex-end;
+      gap: 15px;
+      transition: transform 0.5s ease-out;
+    }
+
+    .building {
+      background: #6c5ce7;
+      border-radius: 8px 8px 0 0;
+      position: relative;
+      border: 2px solid #2d3436;
+      border-bottom: none;
+    }
+
+    /* Road */
+    .road {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 65px;
+      background: #555;
+      border-top: 4px solid #333;
+    }
+
+    .road-line {
+      position: absolute;
+      top: 50%;
+      width: 100%;
+      height: 6px;
+      background: dashed #fff;
+      border-top: 4px dashed #ffeb3b;
+      transform: translateY(-50%);
+    }
+
+    /* Car */
+    .car-wrapper {
+      position: absolute;
+      bottom: 20px;
+      left: 50px;
+      width: 80px;
+      height: 45px;
+      transition: left 1.2s ease-in-out, transform 0.3s ease;
+      z-index: 5;
+    }
+
+    .car-body {
+      position: absolute;
+      width: 100%;
+      height: 30px;
+      bottom: 10px;
+      background: #ff4757;
+      border-radius: 12px 18px 8px 8px;
+      border: 3px solid #2f3542;
+    }
+
+    .car-top {
+      position: absolute;
+      width: 45px;
+      height: 20px;
+      top: -2px;
+      left: 15px;
+      background: #ff6b81;
+      border-radius: 12px 12px 0 0;
+      border: 3px solid #2f3542;
+      border-bottom: none;
+    }
+
+    .car-window {
+      position: absolute;
+      width: 18px;
+      height: 12px;
+      top: 3px;
+      right: 5px;
+      background: #70a1ff;
+      border-radius: 4px;
+      border: 2px solid #2f3542;
+    }
+
+    .wheel {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      background: #2f3542;
+      border-radius: 50%;
+      bottom: 2px;
+      border: 2px solid #fff;
+      animation: spinWheel 0.4s linear infinite;
+    }
+
+    .wheel.left { left: 10px; }
+    .wheel.right { right: 10px; }
+
+    @keyframes spinWheel {
+      100% { transform: rotate(360deg); }
+    }
+
+    .car-stopped .wheel {
+      animation-play-state: paused;
+    }
+
+    /* Animations */
+    .car-jump {
+      animation: jumpCar 0.8s ease;
+    }
+
+    @keyframes jumpCar {
+      0% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-70px) rotate(10deg); }
+      100% { transform: translateY(0) rotate(0deg); }
+    }
+
+    .car-crash {
+      animation: crashCar 0.5s ease;
+    }
+
+    @keyframes crashCar {
+      0% { transform: translateX(0) rotate(0deg); }
+      25% { transform: translateX(-15px) rotate(-10deg); }
+      50% { transform: translateX(10px) rotate(15deg); }
+      75% { transform: translateX(-5px) rotate(-5deg); }
+      100% { transform: translateX(0) rotate(0deg); }
+    }
+
+    /* Obstacle */
+    .obstacle {
+      position: absolute;
+      bottom: 20px;
+      right: 180px;
+      width: 50px;
+      height: 50px;
+      background: #ffa502;
+      border: 3px solid #2f3542;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      z-index: 4;
+      transition: transform 0.3s;
+    }
+
+    /* Control & Question UI */
+    .control-card {
+      height: 45%;
+      background: #ffffff;
+      color: #2f3542;
+      border-radius: 24px 24px 0 0;
+      padding: 15px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 -5px 20px rgba(0,0,0,0.15);
+      z-index: 6;
+      text-align: center;
+    }
+
+    .target-box {
+      background: #f1f2f6;
+      width: 100%;
+      padding: 12px 15px;
+      border-radius: 16px;
+      border: 2px dashed #70a1ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .place-icon {
+      font-size: 2rem;
+      background: #fff;
+      padding: 6px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    .target-sentence {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #2f3542;
+      line-height: 1.3;
+    }
+
+    .status-msg {
+      font-size: 0.95rem;
+      font-weight: bold;
+      min-height: 24px;
+      color: #747d8c;
+      margin: 4px 0;
+    }
+
+    /* Controls Group */
+    .action-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      margin-bottom: 5px;
+    }
+
+    .mic-btn {
+      width: 75px;
+      height: 75px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff4757, #ff6b81);
+      border: 4px solid #fff;
+      box-shadow: 0 6px 15px rgba(255, 71, 87, 0.4);
+      color: white;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      outline: none;
+      transition: transform 0.1s, background 0.3s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .mic-btn:active {
+      transform: scale(0.92);
+    }
+
+    .mic-btn.listening {
+      background: linear-gradient(135deg, #2ed573, #26af5f);
+      animation: pulseMic 1.2s infinite;
+      box-shadow: 0 6px 20px rgba(46, 213, 115, 0.6);
+    }
+
+    @keyframes pulseMic {
+      0% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0.7); }
+      70% { box-shadow: 0 0 0 20px rgba(46, 213, 115, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0); }
+    }
+
+    .next-btn {
+      display: none;
+      background: #2ed573;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 25px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(46, 213, 115, 0.4);
+      animation: bounce 0.8s infinite alternate;
+    }
+
+    @keyframes bounce {
+      from { transform: translateY(0); }
+      to { transform: translateY(-6px); }
+    }
+
+    /* Modal End Game */
+    .end-modal {
+      display: none;
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 100;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .end-card {
+      background: #fff;
+      color: #333;
+      padding: 30px;
+      border-radius: 20px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    .end-title {
+      font-size: 2rem;
+      color: #ff4757;
+      margin-bottom: 10px;
+    }
+
+    .restart-btn {
+      background: #1e90ff;
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      border-radius: 20px;
+      margin-top: 15px;
+      cursor: pointer;
+    }
+
+    /* Speech result overlay */
+    .heard-text {
+      font-size: 0.85rem;
+      color: #57606f;
+      font-style: italic;
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <!-- Top Info -->
+    <div class="top-bar">
+      <div class="badge" id="level-indicator">Tahap 1 / 10</div>
+      <div class="badge" id="score-indicator">Markah: 0</div>
+    </div>
+
+    <!-- Visual World -->
+    <div class="world-stage">
+      <div class="cloud" style="width: 100px; height: 30px; top: 20px; animation-duration: 25s;"></div>
+      <div class="cloud" style="width: 140px; height: 40px; top: 60px; animation-duration: 18s; animation-delay: -5s;"></div>
+
+      <!-- City Background Buildings -->
+      <div class="city-bg" id="cityBg">
+        <div class="building" style="width: 50px; height: 90px; background: #ff7675;"></div>
+        <div class="building" style="width: 70px; height: 110px; background: #74b9ff;"></div>
+        <div class="building" style="width: 60px; height: 75px; background: #55efc4;"></div>
+        <div class="building" style="width: 80px; height: 130px; background: #a29bfe;"></div>
+        <div class="building" style="width: 55px; height: 95px; background: #ffeaa7;"></div>
+        <div class="building" style="width: 65px; height: 115px; background: #fd79a8;"></div>
+        <div class="building" style="width: 75px; height: 85px; background: #81ecec;"></div>
+      </div>
+
+      <!-- Obstacle -->
+      <div class="obstacle" id="obstacle">🚧</div>
+
+      <!-- Car -->
+      <div class="car-wrapper car-stopped" id="car">
+        <div class="car-top">
+          <div class="car-window"></div>
+        </div>
+        <div class="car-body"></div>
+        <div class="wheel left"></div>
+        <div class="wheel right"></div>
+      </div>
+
+      <!-- Road -->
+      <div class="road">
+        <div class="road-line"></div>
+      </div>
+    </div>
+
+    <!-- Control Area -->
+    <div class="control-card">
+      <div class="target-box">
+        <span class="place-icon" id="placeIcon">🏫</span>
+        <div class="target-sentence" id="targetSentence">SJKT Perak River Valley itu cantik.</div>
+      </div>
+
+      <div>
+        <div class="status-msg" id="statusMsg">Tekan mikrofon & sebut ayat di atas</div>
+        <div class="heard-text" id="heardText"></div>
+      </div>
+
+      <div class="action-group">
+        <button class="mic-btn" id="micBtn" aria-label="Sebut">🎙️</button>
+        <button class="next-btn" id="nextBtn">Tahap Seterusnya ➔</button>
+      </div>
+    </div>
+
+    <!-- Game End Modal -->
+    <div class="end-modal" id="endModal">
+      <div class="end-card">
+        <div class="end-title">🎉 Tahniah! 🎉</div>
+        <p>Anda telah berjaya menyelesaikan semua tahap sebutan di bandar!</p>
+        <h2 style="margin: 15px 0; color: #2ed573;" id="finalScore">Markah Akhir: 100</h2>
+        <button class="restart-btn" onclick="resetGame()">Main Semula</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // DATA SENTENCES & ICONS
+    const levelsData = [
+      { sentence: "SJKT Perak River Valley itu cantik.", icon: "🏫" },
+      { sentence: "Taman ini besar dan hijau.", icon: "🌳" },
+      { sentence: "Perpustakaan itu sunyi dan bersih.", icon: "📚" },
+      { sentence: "Pasar itu sibuk dan bising.", icon: "🛒" },
+      { sentence: "Pusat membeli-belah itu besar dan terang.", icon: "🏢" },
+      { sentence: "Muzium itu lama tetapi menarik.", icon: "🏛️" },
+      { sentence: "Hospital itu besar dan moden.", icon: "🏥" },
+      { sentence: "Taman permainan itu berwarna-warni.", icon: "🛝" },
+      { sentence: "Stesen kereta api itu sibuk.", icon: "🚉" },
+      { sentence: "Bandar ini cantik dan bersih.", icon: "🏙️" }
+    ];
+
+    // GAME STATE
+    let currentLevel = 0;
+    let score = 0;
+    let isListening = false;
+
+    // DOM ELEMENTS
+    const levelIndicator = document.getElementById("level-indicator");
+    const scoreIndicator = document.getElementById("score-indicator");
+    const placeIcon = document.getElementById("placeIcon");
+    const targetSentence = document.getElementById("targetSentence");
+    const statusMsg = document.getElementById("statusMsg");
+    const heardText = document.getElementById("heardText");
+    const micBtn = document.getElementById("micBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const car = document.getElementById("car");
+    const obstacle = document.getElementById("obstacle");
+    const endModal = document.getElementById("endModal");
+    const finalScore = document.getElementById("finalScore");
+
+    // AUDIO SYNTHESIS (Web Audio API Sound Effects)
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new AudioCtx();
+      }
+    }
+
+    function playSuccessSound() {
+      initAudio();
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3); // A5
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.3);
+    }
+
+    function playCrashSound() {
+      initAudio();
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+      gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.3);
+    }
+
+    // SPEECH RECOGNITION SETUP
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+
+    if (!SpeechRecognition) {
+      statusMsg.innerText = "Pelayar ini tidak menyokong pengecaman suara. Sila gunakan Google Chrome.";
+      statusMsg.style.color = "#ff4757";
+      micBtn.style.display = "none";
+    } else {
+      recognition = new SpeechRecognition();
+      recognition.lang = "ms-MY";
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = function() {
+        isListening = true;
+        micBtn.classList.add("listening");
+        statusMsg.innerText = "Mendengar... Sila sebut ayat!";
+        statusMsg.style.color = "#2ed573";
+        heardText.innerText = "";
+      };
+
+      recognition.onend = function() {
+        isListening = false;
+        micBtn.classList.remove("listening");
+      };
+
+      recognition.onerror = function(event) {
+        console.error("Speech Rec Error:", event.error);
+        isListening = false;
+        micBtn.classList.remove("listening");
+        
+        if (event.error === 'no-speech') {
+          statusMsg.innerText = "Tiada suara dikesan. Sila cuba lagi.";
+        } else if (event.error === 'not-allowed') {
+          statusMsg.innerText = "Sila benarkan akses mikrofon untuk bermain permainan ini.";
+        } else {
+          statusMsg.innerText = "Ralat dikesan. Sila cuba lagi.";
+        }
+        statusMsg.style.color = "#ff4757";
+      };
+
+      recognition.onresult = function(event) {
+        const spokenText = event.results[0][0].transcript;
+        heardText.innerText = `Anda menyebut: "${spokenText}"`;
+        evaluateSpeech(spokenText);
+      };
+    }
+
+    // MIC CLICK HANDLER
+    micBtn.addEventListener("click", () => {
+      if (!SpeechRecognition) return;
+
+      // Ask for microphone access explicitly if needed
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(() => {
+            try {
+              recognition.start();
+            } catch (e) {
+              // Handle if already started
+            }
+          })
+          .catch((err) => {
+            console.error(err);
+            statusMsg.innerText = "Sila benarkan akses mikrofon untuk bermain permainan ini.";
+            statusMsg.style.color = "#ff4757";
+          });
+      } else {
+        try {
+          recognition.start();
+        } catch (e) {}
+      }
+    });
+
+    // SIMILARITY COMPUTATION (Levenshtein Distance & Normalization)
+    function cleanString(str) {
+      return str.toLowerCase()
+        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function levenshteinDistance(a, b) {
+      const matrix = [];
+      for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+      for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+      for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+          if (b.charAt(i - 1) === a.charAt(j - 1)) {
+            matrix[i][j] = matrix[i - 1][j - 1];
+          } else {
+            matrix[i][j] = Math.min(
+              matrix[i - 1][j - 1] + 1,
+              matrix[i][j - 1] + 1,
+              matrix[i - 1][j] + 1
+            );
+          }
+        }
+      }
+      return matrix[b.length][a.length];
+    }
+
+    function calculateSimilarity(str1, str2) {
+      const s1 = cleanString(str1);
+      const s2 = cleanString(str2);
+      if (s1 === s2) return 1.0;
+      const maxLength = Math.max(s1.length, s2.length);
+      if (maxLength === 0) return 1.0;
+      const distance = levenshteinDistance(s1, s2);
+      return (maxLength - distance) / maxLength;
+    }
+
+    // EVALUATE SPEECH RESULT
+    function evaluateSpeech(spoken) {
+      const target = levelsData[currentLevel].sentence;
+      const similarity = calculateSimilarity(spoken, target);
+
+      // Tolerance threshold: ~70% to 75%
+      if (similarity >= 0.70) {
+        handleCorrectAnswer();
+      } else {
+        handleWrongAnswer();
+      }
+    }
+
+    function handleCorrectAnswer() {
+      playSuccessSound();
+      statusMsg.innerText = "Syabas! Sebutan anda betul!";
+      statusMsg.style.color = "#2ed573";
+
+      // Car Jump animation over obstacle
+      car.classList.remove("car-stopped");
+      car.classList.add("car-jump");
+
+      setTimeout(() => {
+        car.style.left = "70%"; // Move car past obstacle
+      }, 200);
+
+      score += 10;
+      scoreIndicator.innerText = `Markah: ${score}`;
+
+      micBtn.style.display = "none";
+      nextBtn.style.display = "inline-block";
+    }
+
+    function handleWrongAnswer() {
+      playCrashSound();
+      statusMsg.innerText = "Sebutan kurang tepat. Sila cuba lagi!";
+      statusMsg.style.color = "#ff4757";
+
+      // Car crash animation
+      car.classList.add("car-crash");
+      setTimeout(() => {
+        car.classList.remove("car-crash");
+      }, 500);
+    }
+
+    // NEXT LEVEL LOGIC
+    nextBtn.addEventListener("click", () => {
+      currentLevel++;
+      if (currentLevel >= levelsData.length) {
+        showEndGame();
+      } else {
+        loadLevel();
+      }
+    });
+
+    function loadLevel() {
+      // Reset UI & Positions
+      levelIndicator.innerText = `Tahap ${currentLevel + 1} / ${levelsData.length}`;
+      placeIcon.innerText = levelsData[currentLevel].icon;
+      targetSentence.innerText = levelsData[currentLevel].sentence;
+      statusMsg.innerText = "Tekan mikrofon & sebut ayat di atas";
+      statusMsg.style.color = "#747d8c";
+      heardText.innerText = "";
+
+      car.classList.remove("car-jump");
+      car.classList.add("car-stopped");
+      car.style.left = "50px";
+
+      micBtn.style.display = "flex";
+      nextBtn.style.display = "none";
+    }
+
+    function showEndGame() {
+      finalScore.innerText = `Markah Akhir: ${score}`;
+      endModal.style.display = "flex";
+    }
+
+    function resetGame() {
+      currentLevel = 0;
+      score = 0;
+      scoreIndicator.innerText = "Markah: 0";
+      endModal.style.display = "none";
+      loadLevel();
+    }
+
+    // Initialize Game
+    loadLevel();
+  </script>
+</body>
+</html>
